@@ -1,6 +1,4 @@
-import StorageService from './storageService';
-
-const INVENTORY_PREFIX = 'inventory:';
+import supabase from '../config/supabase';
 
 const InventoryService = {
   // Generate unique item code
@@ -14,34 +12,39 @@ const InventoryService = {
   async create(itemData) {
     try {
       const itemCode = this.generateItemCode(itemData.category);
+      const quantity = itemData.quantity || 0;
+      
       const newItem = {
-        id: itemCode,
-        itemCode: itemCode,
+        item_code: itemCode,
         description: itemData.description,
         category: itemData.category,
-        quantity: itemData.quantity || 0,
+        quantity: quantity,
         unit: itemData.unit,
         location: itemData.location || '',
-        minStockLevel: itemData.minStockLevel || 0,
-        maxStockLevel: itemData.maxStockLevel || 0,
-        unitPrice: itemData.unitPrice || 0,
+        min_stock_level: itemData.minStockLevel || 0,
+        max_stock_level: itemData.maxStockLevel || 0,
+        unit_price: itemData.unitPrice || 0,
         supplier: itemData.supplier || '',
-        status: itemData.quantity > 0 ? 'In Stock' : 'Out of Stock',
-        createdBy: itemData.createdBy,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        status: quantity > 0 ? 'In Stock' : 'Out of Stock',
+        created_by: itemData.createdBy,
         history: [
           {
             action: 'Created',
             date: new Date().toISOString(),
             user: itemData.createdBy,
-            quantity: itemData.quantity
+            quantity: quantity
           }
         ]
       };
 
-      const success = await StorageService.set(`${INVENTORY_PREFIX}${itemCode}`, newItem);
-      return success ? newItem : null;
+      const { data, error } = await supabase
+        .from('inventory')
+        .insert([newItem])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error creating inventory item:', error);
       return null;
@@ -51,7 +54,13 @@ const InventoryService = {
   // Get all Inventory Items
   async getAll() {
     try {
-      return await StorageService.getAllByPrefix(INVENTORY_PREFIX);
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting all inventory items:', error);
       return [];
@@ -61,7 +70,14 @@ const InventoryService = {
   // Get single Inventory Item by ID
   async getById(id) {
     try {
-      return await StorageService.get(`${INVENTORY_PREFIX}${id}`);
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error getting inventory item:', error);
       return null;
@@ -74,23 +90,28 @@ const InventoryService = {
       const existingItem = await this.getById(id);
       if (!existingItem) return null;
 
-      const updatedItem = {
-        ...existingItem,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-        history: [
-          ...existingItem.history,
-          {
-            action: 'Updated',
-            date: new Date().toISOString(),
-            user: updates.updatedBy || 'System',
-            quantity: updates.quantity || existingItem.quantity
-          }
-        ]
-      };
+      const updatedHistory = [
+        ...existingItem.history,
+        {
+          action: 'Updated',
+          date: new Date().toISOString(),
+          user: updates.updatedBy || 'System',
+          quantity: updates.quantity || existingItem.quantity
+        }
+      ];
 
-      const success = await StorageService.set(`${INVENTORY_PREFIX}${id}`, updatedItem);
-      return success ? updatedItem : null;
+      const { data, error } = await supabase
+        .from('inventory')
+        .update({
+          ...updates,
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error updating inventory item:', error);
       return null;
@@ -107,24 +128,33 @@ const InventoryService = {
       
       let status = 'In Stock';
       if (newQuantity === 0) status = 'Out of Stock';
-      else if (newQuantity <= item.minStockLevel) status = 'Low Stock';
+      else if (newQuantity <= item.min_stock_level) status = 'Low Stock';
 
-      return await this.update(id, {
-        quantity: newQuantity,
-        status: status,
-        updatedBy: user,
-        history: [
-          ...item.history,
-          {
-            action: type,
-            date: new Date().toISOString(),
-            user: user,
-            adjustment: adjustment,
-            previousQuantity: item.quantity,
-            newQuantity: newQuantity
-          }
-        ]
-      });
+      const updatedHistory = [
+        ...item.history,
+        {
+          action: type,
+          date: new Date().toISOString(),
+          user: user,
+          adjustment: adjustment,
+          previousQuantity: item.quantity,
+          newQuantity: newQuantity
+        }
+      ];
+
+      const { data, error } = await supabase
+        .from('inventory')
+        .update({
+          quantity: newQuantity,
+          status: status,
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error adjusting quantity:', error);
       return null;
@@ -134,7 +164,13 @@ const InventoryService = {
   // Delete Inventory Item
   async delete(id) {
     try {
-      return await StorageService.delete(`${INVENTORY_PREFIX}${id}`);
+      const { error } = await supabase
+        .from('inventory')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
     } catch (error) {
       console.error('Error deleting inventory item:', error);
       return false;
@@ -144,8 +180,14 @@ const InventoryService = {
   // Get items by category
   async getByCategory(category) {
     try {
-      const allItems = await this.getAll();
-      return allItems.filter(item => item.category === category);
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('category', category)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting items by category:', error);
       return [];
@@ -155,8 +197,14 @@ const InventoryService = {
   // Get low stock items
   async getLowStockItems() {
     try {
-      const allItems = await this.getAll();
-      return allItems.filter(item => item.quantity <= item.minStockLevel && item.quantity > 0);
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('status', 'Low Stock')
+        .order('quantity', { ascending: true });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting low stock items:', error);
       return [];
@@ -166,8 +214,14 @@ const InventoryService = {
   // Get out of stock items
   async getOutOfStockItems() {
     try {
-      const allItems = await this.getAll();
-      return allItems.filter(item => item.quantity === 0);
+      const { data, error } = await supabase
+        .from('inventory')
+        .select('*')
+        .eq('status', 'Out of Stock')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting out of stock items:', error);
       return [];
