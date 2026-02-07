@@ -1,6 +1,4 @@
-import StorageService from './storageService';
-
-const PO_PREFIX = 'po:';
+import supabase from '../config/supabase';
 
 const PurchaseOrderService = {
   // Generate unique PO number
@@ -15,21 +13,17 @@ const PurchaseOrderService = {
     try {
       const poNumber = this.generatePONumber();
       const newPO = {
-        id: poNumber,
-        poNumber: poNumber,
-        prReference: poData.prReference,
+        po_number: poNumber,
+        pr_reference: poData.prReference || null,
         supplier: poData.supplier,
-        supplierContact: poData.supplierContact || '',
-        date: new Date().toISOString(),
-        deliveryDate: poData.deliveryDate || null,
+        supplier_contact: poData.supplierContact || '',
+        delivery_date: poData.deliveryDate || null,
         items: poData.items || [],
-        totalAmount: poData.totalAmount || 0,
+        total_amount: poData.totalAmount || 0,
         status: 'Pending',
-        paymentTerms: poData.paymentTerms || '',
+        payment_terms: poData.paymentTerms || '',
         notes: poData.notes || '',
-        createdBy: poData.createdBy,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        created_by: poData.createdBy,
         history: [
           {
             action: 'Created',
@@ -40,8 +34,14 @@ const PurchaseOrderService = {
         ]
       };
 
-      const success = await StorageService.set(`${PO_PREFIX}${poNumber}`, newPO);
-      return success ? newPO : null;
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .insert([newPO])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error creating PO:', error);
       return null;
@@ -51,7 +51,13 @@ const PurchaseOrderService = {
   // Get all Purchase Orders
   async getAll() {
     try {
-      return await StorageService.getAllByPrefix(PO_PREFIX);
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting all POs:', error);
       return [];
@@ -61,7 +67,14 @@ const PurchaseOrderService = {
   // Get single Purchase Order by ID
   async getById(id) {
     try {
-      return await StorageService.get(`${PO_PREFIX}${id}`);
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error getting PO:', error);
       return null;
@@ -74,23 +87,28 @@ const PurchaseOrderService = {
       const existingPO = await this.getById(id);
       if (!existingPO) return null;
 
-      const updatedPO = {
-        ...existingPO,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-        history: [
-          ...existingPO.history,
-          {
-            action: 'Updated',
-            date: new Date().toISOString(),
-            user: updates.updatedBy || 'System',
-            status: updates.status || existingPO.status
-          }
-        ]
-      };
+      const updatedHistory = [
+        ...existingPO.history,
+        {
+          action: 'Updated',
+          date: new Date().toISOString(),
+          user: updates.updatedBy || 'System',
+          status: updates.status || existingPO.status
+        }
+      ];
 
-      const success = await StorageService.set(`${PO_PREFIX}${id}`, updatedPO);
-      return success ? updatedPO : null;
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .update({
+          ...updates,
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error updating PO:', error);
       return null;
@@ -113,7 +131,13 @@ const PurchaseOrderService = {
   // Delete Purchase Order
   async delete(id) {
     try {
-      return await StorageService.delete(`${PO_PREFIX}${id}`);
+      const { error } = await supabase
+        .from('purchase_orders')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
     } catch (error) {
       console.error('Error deleting PO:', error);
       return false;
@@ -123,8 +147,14 @@ const PurchaseOrderService = {
   // Get POs by status
   async getByStatus(status) {
     try {
-      const allPOs = await this.getAll();
-      return allPOs.filter(po => po.status === status);
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .eq('status', status)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting POs by status:', error);
       return [];
@@ -134,8 +164,14 @@ const PurchaseOrderService = {
   // Get POs by supplier
   async getBySupplier(supplier) {
     try {
-      const allPOs = await this.getAll();
-      return allPOs.filter(po => po.supplier.toLowerCase().includes(supplier.toLowerCase()));
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .ilike('supplier', `%${supplier}%`)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting POs by supplier:', error);
       return [];
@@ -145,8 +181,14 @@ const PurchaseOrderService = {
   // Get POs by PR Reference
   async getByPRReference(prReference) {
     try {
-      const allPOs = await this.getAll();
-      return allPOs.filter(po => po.prReference === prReference);
+      const { data, error } = await supabase
+        .from('purchase_orders')
+        .select('*')
+        .eq('pr_reference', prReference)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting POs by PR reference:', error);
       return [];
