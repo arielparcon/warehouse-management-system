@@ -1,14 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Plus, Filter, Download, FileText } from 'lucide-react';
 import Button from '../../components/common/Button';
 import Card from '../../components/common/Card';
+import Modal from '../../components/common/Modal';
+import PRForm from './PRForm';
+import { useWMS } from '../../context/WMSContext';
 
 const PurchaseRequests = () => {
+  const { purchaseRequests } = useWMS();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const handleSuccess = () => {
+    console.log('PR created successfully!');
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Button variant="primary" icon={Plus}>
+          <Button 
+            variant="primary" 
+            icon={Plus}
+            onClick={() => setIsModalOpen(true)}
+          >
             New Purchase Request
           </Button>
           <Button variant="outline" icon={Filter}>
@@ -45,18 +59,63 @@ const PurchaseRequests = () => {
                 </th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
-                  <FileText size={48} className="mx-auto mb-3 opacity-50" />
-                  <p>No purchase requests found</p>
-                  <p className="text-sm mt-1">Click "New Purchase Request" to create one</p>
-                </td>
-              </tr>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {purchaseRequests.length === 0 ? (
+                <tr>
+                  <td colSpan="6" className="px-6 py-12 text-center text-gray-400">
+                    <FileText size={48} className="mx-auto mb-3 opacity-50" />
+                    <p>No purchase requests found</p>
+                    <p className="text-sm mt-1">Click "New Purchase Request" to create one</p>
+                  </td>
+                </tr>
+              ) : (
+                purchaseRequests.map((pr) => (
+                  <tr key={pr.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {pr.prNumber}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {new Date(pr.date).toLocaleDateString()}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {pr.department}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      {pr.items.length} item(s)
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                        ${pr.status === 'Submitted' ? 'bg-blue-100 text-blue-800' : ''}
+                        ${pr.status === 'Approved' ? 'bg-green-100 text-green-800' : ''}
+                        ${pr.status === 'For Canvass' ? 'bg-yellow-100 text-yellow-800' : ''}
+                        ${pr.status === 'Cancelled' ? 'bg-red-100 text-red-800' : ''}
+                      `}>
+                        {pr.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                      <button className="text-blue-600 hover:text-blue-900 mr-3">View</button>
+                      <button className="text-gray-600 hover:text-gray-900">Edit</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </Card>
+
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title="New Purchase Request"
+        size="lg"
+      >
+        <PRForm
+          onClose={() => setIsModalOpen(false)}
+          onSuccess={handleSuccess}
+        />
+      </Modal>
     </div>
   );
 };
