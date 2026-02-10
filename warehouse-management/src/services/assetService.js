@@ -1,6 +1,4 @@
-import StorageService from './storageService';
-
-const ASSET_PREFIX = 'asset:';
+import supabase from '../config/supabase';
 
 const AssetService = {
   // Generate unique asset ID
@@ -13,10 +11,8 @@ const AssetService = {
   // Generate QR Code data
   generateQRCode(assetID) {
     return {
-      assetID: assetID,
-      qrCode: `QR-${assetID}`,
-      qrURL: `https://wms.goli.com/assets/${assetID}`,
-      generatedAt: new Date().toISOString()
+      qr_code: `QR-${assetID}`,
+      qr_url: `https://wms.goli.com/assets/${assetID}`
     };
   },
 
@@ -27,23 +23,20 @@ const AssetService = {
       const qrData = this.generateQRCode(assetID);
       
       const newAsset = {
-        id: assetID,
-        assetID: assetID,
+        asset_id: assetID,
         description: assetData.description,
         category: assetData.category,
-        serialNumber: assetData.serialNumber || '',
+        serial_number: assetData.serialNumber || '',
         location: assetData.location || '',
-        assignedTo: assetData.assignedTo || null,
+        assigned_to: assetData.assignedTo || null,
         status: assetData.status || 'Available',
-        purchaseDate: assetData.purchaseDate || new Date().toISOString(),
-        purchasePrice: assetData.purchasePrice || 0,
+        purchase_date: assetData.purchaseDate || new Date().toISOString(),
+        purchase_price: assetData.purchasePrice || 0,
         warranty: assetData.warranty || '',
-        qrCode: qrData.qrCode,
-        qrURL: qrData.qrURL,
-        isTagged: true,
-        createdBy: assetData.createdBy,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        qr_code: qrData.qr_code,
+        qr_url: qrData.qr_url,
+        is_tagged: true,
+        created_by: assetData.createdBy,
         history: [
           {
             action: 'Created',
@@ -54,8 +47,14 @@ const AssetService = {
         ]
       };
 
-      const success = await StorageService.set(`${ASSET_PREFIX}${assetID}`, newAsset);
-      return success ? newAsset : null;
+      const { data, error } = await supabase
+        .from('assets')
+        .insert([newAsset])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error creating asset:', error);
       return null;
@@ -65,7 +64,13 @@ const AssetService = {
   // Get all Assets
   async getAll() {
     try {
-      return await StorageService.getAllByPrefix(ASSET_PREFIX);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting all assets:', error);
       return [];
@@ -75,7 +80,14 @@ const AssetService = {
   // Get single Asset by ID
   async getById(id) {
     try {
-      return await StorageService.get(`${ASSET_PREFIX}${id}`);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error getting asset:', error);
       return null;
@@ -88,23 +100,28 @@ const AssetService = {
       const existingAsset = await this.getById(id);
       if (!existingAsset) return null;
 
-      const updatedAsset = {
-        ...existingAsset,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-        history: [
-          ...existingAsset.history,
-          {
-            action: 'Updated',
-            date: new Date().toISOString(),
-            user: updates.updatedBy || 'System',
-            status: updates.status || existingAsset.status
-          }
-        ]
-      };
+      const updatedHistory = [
+        ...existingAsset.history,
+        {
+          action: 'Updated',
+          date: new Date().toISOString(),
+          user: updates.updatedBy || 'System',
+          status: updates.status || existingAsset.status
+        }
+      ];
 
-      const success = await StorageService.set(`${ASSET_PREFIX}${id}`, updatedAsset);
-      return success ? updatedAsset : null;
+      const { data, error } = await supabase
+        .from('assets')
+        .update({
+          ...updates,
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error updating asset:', error);
       return null;
@@ -117,21 +134,30 @@ const AssetService = {
       const asset = await this.getById(id);
       if (!asset) return null;
 
-      return await this.update(id, {
-        assignedTo: assignedTo,
-        status: 'In Use',
-        updatedBy: user,
-        history: [
-          ...asset.history,
-          {
-            action: 'Assigned',
-            date: new Date().toISOString(),
-            user: user,
-            assignedTo: assignedTo,
-            status: 'In Use'
-          }
-        ]
-      });
+      const updatedHistory = [
+        ...asset.history,
+        {
+          action: 'Assigned',
+          date: new Date().toISOString(),
+          user: user,
+          assignedTo: assignedTo,
+          status: 'In Use'
+        }
+      ];
+
+      const { data, error } = await supabase
+        .from('assets')
+        .update({
+          assigned_to: assignedTo,
+          status: 'In Use',
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error assigning asset:', error);
       return null;
@@ -144,21 +170,30 @@ const AssetService = {
       const asset = await this.getById(id);
       if (!asset) return null;
 
-      return await this.update(id, {
-        assignedTo: null,
-        status: 'Available',
-        updatedBy: user,
-        history: [
-          ...asset.history,
-          {
-            action: 'Returned',
-            date: new Date().toISOString(),
-            user: user,
-            previousAssignee: asset.assignedTo,
-            status: 'Available'
-          }
-        ]
-      });
+      const updatedHistory = [
+        ...asset.history,
+        {
+          action: 'Returned',
+          date: new Date().toISOString(),
+          user: user,
+          previousAssignee: asset.assigned_to,
+          status: 'Available'
+        }
+      ];
+
+      const { data, error } = await supabase
+        .from('assets')
+        .update({
+          assigned_to: null,
+          status: 'Available',
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error returning asset:', error);
       return null;
@@ -181,7 +216,13 @@ const AssetService = {
   // Delete Asset
   async delete(id) {
     try {
-      return await StorageService.delete(`${ASSET_PREFIX}${id}`);
+      const { error } = await supabase
+        .from('assets')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
     } catch (error) {
       console.error('Error deleting asset:', error);
       return false;
@@ -191,8 +232,14 @@ const AssetService = {
   // Get assets by status
   async getByStatus(status) {
     try {
-      const allAssets = await this.getAll();
-      return allAssets.filter(asset => asset.status === status);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('status', status)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting assets by status:', error);
       return [];
@@ -202,8 +249,14 @@ const AssetService = {
   // Get assets by category
   async getByCategory(category) {
     try {
-      const allAssets = await this.getAll();
-      return allAssets.filter(asset => asset.category === category);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('category', category)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting assets by category:', error);
       return [];
@@ -213,8 +266,14 @@ const AssetService = {
   // Get assets assigned to user
   async getByAssignee(assignedTo) {
     try {
-      const allAssets = await this.getAll();
-      return allAssets.filter(asset => asset.assignedTo === assignedTo);
+      const { data, error } = await supabase
+        .from('assets')
+        .select('*')
+        .eq('assigned_to', assignedTo)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting assets by assignee:', error);
       return [];

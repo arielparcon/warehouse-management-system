@@ -1,6 +1,4 @@
-import StorageService from './storageService';
-
-const PR_PREFIX = 'pr:';
+import supabase from '../config/supabase';
 
 const PurchaseRequestService = {
   // Generate unique PR number
@@ -15,16 +13,12 @@ const PurchaseRequestService = {
     try {
       const prNumber = this.generatePRNumber();
       const newPR = {
-        id: prNumber,
-        prNumber: prNumber,
-        date: new Date().toISOString(),
+        pr_number: prNumber,
         department: prData.department,
-        requestedBy: prData.requestedBy,
+        requested_by: prData.requestedBy,
         items: prData.items || [],
         status: 'Submitted',
         notes: prData.notes || '',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
         history: [
           {
             action: 'Created',
@@ -35,8 +29,14 @@ const PurchaseRequestService = {
         ]
       };
 
-      const success = await StorageService.set(`${PR_PREFIX}${prNumber}`, newPR);
-      return success ? newPR : null;
+      const { data, error } = await supabase
+        .from('purchase_requests')
+        .insert([newPR])
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error creating PR:', error);
       return null;
@@ -46,7 +46,13 @@ const PurchaseRequestService = {
   // Get all Purchase Requests
   async getAll() {
     try {
-      return await StorageService.getAllByPrefix(PR_PREFIX);
+      const { data, error } = await supabase
+        .from('purchase_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting all PRs:', error);
       return [];
@@ -56,7 +62,14 @@ const PurchaseRequestService = {
   // Get single Purchase Request by ID
   async getById(id) {
     try {
-      return await StorageService.get(`${PR_PREFIX}${id}`);
+      const { data, error } = await supabase
+        .from('purchase_requests')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error getting PR:', error);
       return null;
@@ -69,24 +82,29 @@ const PurchaseRequestService = {
       const existingPR = await this.getById(id);
       if (!existingPR) return null;
 
-      const updatedPR = {
-        ...existingPR,
-        ...updates,
-        updatedAt: new Date().toISOString(),
-        history: [
-          ...existingPR.history,
-          {
-            action: 'Updated',
-            date: new Date().toISOString(),
-            user: updates.updatedBy || 'System',
-            status: updates.status || existingPR.status,
-            notes: updates.notes || ''
-          }
-        ]
-      };
+      const updatedHistory = [
+        ...existingPR.history,
+        {
+          action: 'Updated',
+          date: new Date().toISOString(),
+          user: updates.updatedBy || 'System',
+          status: updates.status || existingPR.status,
+          notes: updates.notes || ''
+        }
+      ];
 
-      const success = await StorageService.set(`${PR_PREFIX}${id}`, updatedPR);
-      return success ? updatedPR : null;
+      const { data, error } = await supabase
+        .from('purchase_requests')
+        .update({
+          ...updates,
+          history: updatedHistory
+        })
+        .eq('id', id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
     } catch (error) {
       console.error('Error updating PR:', error);
       return null;
@@ -109,7 +127,13 @@ const PurchaseRequestService = {
   // Delete Purchase Request
   async delete(id) {
     try {
-      return await StorageService.delete(`${PR_PREFIX}${id}`);
+      const { error } = await supabase
+        .from('purchase_requests')
+        .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      return true;
     } catch (error) {
       console.error('Error deleting PR:', error);
       return false;
@@ -119,8 +143,14 @@ const PurchaseRequestService = {
   // Get PRs by status
   async getByStatus(status) {
     try {
-      const allPRs = await this.getAll();
-      return allPRs.filter(pr => pr.status === status);
+      const { data, error } = await supabase
+        .from('purchase_requests')
+        .select('*')
+        .eq('status', status)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting PRs by status:', error);
       return [];
@@ -130,8 +160,14 @@ const PurchaseRequestService = {
   // Get PRs by department
   async getByDepartment(department) {
     try {
-      const allPRs = await this.getAll();
-      return allPRs.filter(pr => pr.department === department);
+      const { data, error } = await supabase
+        .from('purchase_requests')
+        .select('*')
+        .eq('department', department)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      return data || [];
     } catch (error) {
       console.error('Error getting PRs by department:', error);
       return [];
