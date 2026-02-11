@@ -81,10 +81,7 @@ const InventoryForm = ({ onClose, onSuccess }) => {
             <option value="">Select Category</option>
             <option value="Electronics">Electronics</option>
             <option value="Office Supplies">Office Supplies</option>
-            <option value="Furniture">Furniture</option>
             <option value="Hardware">Hardware</option>
-            <option value="Software">Software</option>
-            <option value="Consumables">Consumables</option>
             <option value="Other">Other</option>
           </select>
         </div>
