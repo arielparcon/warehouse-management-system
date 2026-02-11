@@ -102,7 +102,7 @@ const AssetForm = ({ onClose, onSuccess }) => {
             value={formData.serialNumber}
             onChange={handleInputChange}
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Manufacturer serial number"
+            placeholder="Serial number"
           />
         </div>
 
@@ -204,8 +204,8 @@ const AssetForm = ({ onClose, onSuccess }) => {
         </div>
       </div>
 
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <p className="text-sm text-blue-800">
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+        <p className="text-sm text-green-800">
           <strong>Note:</strong> A QR code will be automatically generated for this asset upon creation.
         </p>
       </div>
