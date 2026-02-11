@@ -63,7 +63,7 @@ const PurchaseOrders = () => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {purchaseOrders.length === 0 ? (
+              {!purchaseOrders || purchaseOrders.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="px-6 py-12 text-center text-gray-400">
                     <ShoppingCart size={48} className="mx-auto mb-3 opacity-50" />
@@ -75,19 +75,19 @@ const PurchaseOrders = () => {
                 purchaseOrders.map((po) => (
                   <tr key={po.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {po.poNumber}
+                      {po.po_number || po.poNumber || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {po.prReference || '-'}
+                      {po.pr_reference || po.prReference || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {po.supplier}
+                      {po.supplier || '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(po.date).toLocaleDateString()}
+                      {po.date ? new Date(po.date).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ₱{po.totalAmount.toFixed(2)}
+                      ₱{(po.total_amount || po.totalAmount) ? parseFloat(po.total_amount || po.totalAmount).toFixed(2) : '0.00'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
@@ -96,7 +96,7 @@ const PurchaseOrders = () => {
                         ${po.status === 'Completed' ? 'bg-blue-100 text-blue-800' : ''}
                         ${po.status === 'Cancelled' ? 'bg-red-100 text-red-800' : ''}
                       `}>
-                        {po.status}
+                        {po.status || 'Unknown'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">

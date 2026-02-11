@@ -92,9 +92,9 @@ const POForm = ({ onClose, onSuccess }) => {
             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">None (Direct PO)</option>
-            {purchaseRequests.filter(pr => pr.status === 'Approved').map(pr => (
-              <option key={pr.id} value={pr.prNumber}>
-                {pr.prNumber} - {pr.department}
+            {purchaseRequests && purchaseRequests.filter(pr => pr.status === 'Approved').map(pr => (
+              <option key={pr.id} value={pr.pr_number || pr.prNumber}>
+                {pr.pr_number || pr.prNumber} - {pr.department}
               </option>
             ))}
           </select>

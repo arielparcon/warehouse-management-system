@@ -59,7 +59,9 @@ export const WMSProvider = ({ children }) => {
       requestedBy: currentUser.name
     });
     if (newPR) {
-      setPurchaseRequests(prev => [...prev, newPR]);
+      // Refresh all PRs to ensure sync
+      const allPRs = await PurchaseRequestService.getAll();
+      setPurchaseRequests(allPRs);
     }
     return newPR;
   };
@@ -92,7 +94,9 @@ export const WMSProvider = ({ children }) => {
       createdBy: currentUser.name
     });
     if (newPO) {
-      setPurchaseOrders(prev => [...prev, newPO]);
+      // Refresh all POs to ensure sync
+      const allPOs = await PurchaseOrderService.getAll();
+      setPurchaseOrders(allPOs);
     }
     return newPO;
   };
@@ -125,7 +129,9 @@ export const WMSProvider = ({ children }) => {
       createdBy: currentUser.name
     });
     if (newItem) {
-      setInventory(prev => [...prev, newItem]);
+      // Refresh all inventory to ensure sync
+      const allInventory = await InventoryService.getAll();
+      setInventory(allInventory);
     }
     return newItem;
   };
@@ -168,7 +174,9 @@ export const WMSProvider = ({ children }) => {
       createdBy: currentUser.name
     });
     if (newAsset) {
-      setAssets(prev => [...prev, newAsset]);
+      // Refresh all assets to ensure sync
+      const allAssets = await AssetService.getAll();
+      setAssets(allAssets);
     }
     return newAsset;
   };

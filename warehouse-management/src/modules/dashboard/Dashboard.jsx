@@ -1,32 +1,111 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Package, Clock } from 'lucide-react';
 import Card from '../../components/common/Card';
 import Button from '../../components/common/Button';
+import Modal from '../../components/common/Modal';
+import { useWMS } from '../../context/WMSContext';
+
+// Import forms
+import PRForm from '../purchase-requests/PRForm';
+import InventoryForm from '../inventory/InventoryForm';
+import AssetForm from '../assets/AssetForm';
 
 const Dashboard = () => {
-  const stats = [
-    { label: 'Total Inventory Items', value: '0', color: 'blue' },
-    { label: 'Pending PRs', value: '0', color: 'yellow' },
-    { label: 'Active POs', value: '0', color: 'green' },
-    { label: 'Assets Tagged', value: '0', color: 'purple' },
-  ];
+  const { getStats, refreshData } = useWMS();
+  const [stats, setStats] = useState({
+    totalInventoryItems: 0,
+    pendingPRs: 0,
+    activePOs: 0,
+    assetsTagged: 0,
+    lowStockItems: 0,
+    outOfStockItems: 0
+  });
+
+  // Modal states
+  const [isPRModalOpen, setIsPRModalOpen] = useState(false);
+  const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+
+  // Update stats when component mounts and when data changes
+  useEffect(() => {
+    const updateStats = () => {
+      const currentStats = getStats();
+      setStats(currentStats);
+    };
+    
+    updateStats();
+    // Refresh data every time we come back to dashboard
+    refreshData();
+  }, [getStats, refreshData]);
+
+  const handlePRSuccess = () => {
+    console.log('PR created successfully from dashboard!');
+    const currentStats = getStats();
+    setStats(currentStats);
+  };
+
+  const handleReceiveSuccess = () => {
+    console.log('Items received successfully!');
+    const currentStats = getStats();
+    setStats(currentStats);
+  };
+
+  const handleQRSuccess = () => {
+    console.log('Asset with QR code created successfully!');
+    const currentStats = getStats();
+    setStats(currentStats);
+  };
 
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat, index) => (
-          <Card key={index} padding="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-500 mb-1">{stat.label}</p>
-                <p className="text-3xl font-bold text-gray-800">{stat.value}</p>
-              </div>
-              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                <Package className="text-blue-600" size={24} />
-              </div>
+        <Card padding="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Total Inventory Items</p>
+              <p className="text-3xl font-bold text-gray-800">{stats.totalInventoryItems}</p>
             </div>
-          </Card>
-        ))}
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Package className="text-blue-600" size={24} />
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Pending PRs</p>
+              <p className="text-3xl font-bold text-gray-800">{stats.pendingPRs}</p>
+            </div>
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Package className="text-yellow-600" size={24} />
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Active POs</p>
+              <p className="text-3xl font-bold text-gray-800">{stats.activePOs}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <Package className="text-green-600" size={24} />
+            </div>
+          </div>
+        </Card>
+
+        <Card padding="p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-500 mb-1">Assets Tagged</p>
+              <p className="text-3xl font-bold text-gray-800">{stats.assetsTagged}</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Package className="text-purple-600" size={24} />
+            </div>
+          </div>
+        </Card>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -39,21 +118,91 @@ const Dashboard = () => {
 
         <Card title="Quick Actions">
           <div className="space-y-3">
-            <Button variant="primary" className="w-full justify-center">
+            <Button 
+              variant="primary" 
+              className="w-full justify-center"
+              onClick={() => setIsPRModalOpen(true)}
+            >
               Create Purchase Request
             </Button>
-            <Button variant="success" className="w-full justify-center">
+            <Button 
+              variant="success" 
+              className="w-full justify-center"
+              onClick={() => setIsReceiveModalOpen(true)}
+            >
               Receive Items
             </Button>
-            <Button variant="purple" className="w-full justify-center">
-              Generate QR Code
+            <Button 
+              variant="purple" 
+              className="w-full justify-center"
+              onClick={() => setIsQRModalOpen(true)}
+            >
+              Add New Asset
             </Button>
-            <Button variant="secondary" className="w-full justify-center">
+            <Button 
+              variant="secondary" 
+              className="w-full justify-center"
+              onClick={() => alert('Export Report feature coming soon!')}
+            >
               Export Report
             </Button>
           </div>
         </Card>
       </div>
+
+      {/* Additional Stats Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card title="Inventory Alerts">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg">
+              <span className="text-sm font-medium text-orange-900">Low Stock Items</span>
+              <span className="text-lg font-bold text-orange-600">{stats.lowStockItems}</span>
+            </div>
+            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
+              <span className="text-sm font-medium text-red-900">Out of Stock</span>
+              <span className="text-lg font-bold text-red-600">{stats.outOfStockItems}</span>
+            </div>
+          </div>
+        </Card>
+
+      </div>
+
+      {/* Modals */}
+      <Modal
+        isOpen={isPRModalOpen}
+        onClose={() => setIsPRModalOpen(false)}
+        title="New Purchase Request"
+        size="lg"
+      >
+        <PRForm
+          onClose={() => setIsPRModalOpen(false)}
+          onSuccess={handlePRSuccess}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isReceiveModalOpen}
+        onClose={() => setIsReceiveModalOpen(false)}
+        title="Receive Inventory Items"
+        size="lg"
+      >
+        <InventoryForm
+          onClose={() => setIsReceiveModalOpen(false)}
+          onSuccess={handleReceiveSuccess}
+        />
+      </Modal>
+
+      <Modal
+        isOpen={isQRModalOpen}
+        onClose={() => setIsQRModalOpen(false)}
+        title="Add New Asset (Auto-Generate QR)"
+        size="lg"
+      >
+        <AssetForm
+          onClose={() => setIsQRModalOpen(false)}
+          onSuccess={handleQRSuccess}
+        />
+      </Modal>
     </div>
   );
 };
